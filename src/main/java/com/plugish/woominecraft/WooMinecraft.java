@@ -60,7 +60,7 @@ public final class WooMinecraft extends JavaPlugin {
 		// Log when plugin is initialized.
 		getLogger().info( this.getLang( "log.com_init" ));
 
-		// Setup the scheduler
+		// Set up the scheduler
 		BukkitRunner scheduler = new BukkitRunner(instance);
 		scheduler.runTaskTimerAsynchronously( instance, config.getInt( "update_interval" ) * 20L, config.getInt( "update_interval" ) * 20L);
 
@@ -92,7 +92,6 @@ public final class WooMinecraft extends JavaPlugin {
 
 	/**
 	 * Validates the basics needed in the config.yml file.
-	 *
 	 * Multiple reports of user configs not having keys etc... so this will ensure they know of this
 	 * and will not allow checks to continue if the required data isn't set in the config.
 	 *
@@ -122,7 +121,7 @@ public final class WooMinecraft extends JavaPlugin {
 		if ( ! usePrettyPermalinks ) {
 			baseUrl = getConfig().getString("url") + "/index.php?rest_route=/wmc/v1/server/";
 
-			String customRestUrl = this.getConfig().getString( "restBasePath" );
+			String customRestUrl = this.getConfig().getString( "restBasePath", "");
 			if ( ! customRestUrl.isEmpty() ) {
 				baseUrl = customRestUrl;
 			}
@@ -227,21 +226,22 @@ public final class WooMinecraft extends JavaPlugin {
 		// Setup the client.
 		OkHttpClient client = new OkHttpClient();
 
+
 		// Process stuffs now.
 		RequestBody body = RequestBody.create( MediaType.parse( "application/json; charset=utf-8" ), orders );
 		Request request = new Request.Builder().url( getSiteURL() ).post( body ).build();
-		Response response = client.newCall( request ).execute();
-
-		// If the body is empty we can do nothing.
-		if ( null == response.body() ) {
-			throw new Exception( "Received empty response from your server, check connections." );
-		}
-
-		// Get the JSON reply from the endpoint.
-		WMCPojo wmcPojo = gson.fromJson( response.body().string(), WMCPojo.class );
-		if ( null != wmcPojo.getCode() ) {
-			wmc_log( "Received error when trying to send post data:" + wmcPojo.getCode(), 3 );
-			throw new Exception( wmcPojo.getMessage() );
+		//Response response = client.newCall( request ).execute();
+		try(Response response = client.newCall( request ).execute()) {
+			// If the body is empty we can do nothing.
+			if ( null == response.body() ) {
+				throw new Exception( "Received empty response from your server, check connections." );
+			}
+			// Get the JSON reply from the endpoint.
+			WMCPojo wmcPojo = gson.fromJson( response.body().string(), WMCPojo.class );
+			if ( null != wmcPojo.getCode() ) {
+				wmc_log( "Received error when trying to send post data:" + wmcPojo.getCode(), 3 );
+				throw new Exception( wmcPojo.getMessage() );
+			}
 		}
 
 		return true;
@@ -264,12 +264,12 @@ public final class WooMinecraft extends JavaPlugin {
 	 */
 	private String getPendingOrders() throws Exception {
 		URL baseURL = getSiteURL();
-		BufferedReader input = null;
+		BufferedReader input;
 		try {
 			Reader streamReader = new InputStreamReader( baseURL.openStream() );
 			input = new BufferedReader( streamReader );
 		} catch (IOException e) { // FileNotFoundException extends IOException, so we just catch that here.
-			String key = getConfig().getString("key");
+			String key = getConfig().getString("key", "");
 			String msg = e.getMessage();
 			if ( msg.contains( key ) ) {
 				msg = msg.replace( key, "******" );
