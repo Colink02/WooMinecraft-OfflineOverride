@@ -17,8 +17,8 @@ this makes it okay to sell things against EULA.
 Well for a few reasons:
 1. Velocity is not supported
 2. Geyser is not supported and validation only cares that Mojang's api returns a player name
-3. There is nothing illegal (from what I've seen) about supported such offline mode (it's within the official server software)
-4. What you do is up to you, I can only ask that you don't misuse it and that you follow the Mojang EULA
+3. There is nothing illegal (from what I've seen) about supporting offline mode (it's within the official server software)
+4. What you do is up to you, I can only ask that you don't misuse it and that you follow the Mojang EULA (and if you don't that's on you)
 
 ## Config
 Your config should look like the below section.
