@@ -4,6 +4,22 @@
 WordPress side of things, we allow you to specify commands for product variations, general product commands, and resending of donations at any time.   
 ![WooMinecraft Logo](https://raw.githubusercontent.com/WooMinecraft/WooMinecraft/main/src/main/resources/wmc-logo.jpg)
 
+This fork exists solely because it got extremely frustrating to keep having to remove unnecessary checks to make sure the
+server is online and even though are server is technically online (we use velocity proxy for java players), 
+The bedrock players technically have to be in offline mode due to the nature or Geyser etc. I probably don't need to 
+explain myself here, Nonetheless these are my intentions. Offline servers exist sure but they have to abide by the same
+rules for minecraft as everyone else. Mojang can still very much ban your server if you break TOS/EULA so don't think 
+this makes it okay to sell things against EULA. 
+
+
+
+## Why does this fork disable online checks?
+Well for a few reasons:
+1. Velocity is not supported
+2. Geyser is not supported and validation only cares that Mojang's api returns a player name
+3. There is nothing illegal (from what I've seen) about supported such offline mode (it's within the official server software)
+4. What you do is up to you, I can only ask that you don't misuse it and that you follow the Mojang EULA
+
 ## Config
 Your config should look like the below section.
 ```
