@@ -21,12 +21,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitScheduler;
 
-import java.io.*;
-import java.net.MalformedURLException;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public final class WooMinecraft extends JavaPlugin {
 
@@ -36,26 +37,9 @@ public final class WooMinecraft extends JavaPlugin {
 
 	public static final String NL = System.getProperty("line.separator");
 
-	/**
-	 * Stores the player data to prevent double checks.
-	 *
-	 * i.e. name:uuid:true|false
-	 */
-	private List<String> PlayersMap = new ArrayList<>();
-
 	@Override
 	public void onEnable() {
 		instance = this;
-
-		if (
-			!Bukkit.getOnlineMode() &&
-			!Bukkit.spigot().getConfig().getBoolean("settings.bungeecord")
-		) {
-			getLogger().severe(String.valueOf(Bukkit.spigot().getConfig().getBoolean("settings.bungeecord")));
-			getLogger().severe("WooMinecraft doesn't support offLine mode");
-			Bukkit.getPluginManager().disablePlugin(this);
-			return;
-		}
 
 		YamlConfiguration config = (YamlConfiguration) getConfig();
 		// Save the default config.yml
@@ -78,7 +62,7 @@ public final class WooMinecraft extends JavaPlugin {
 
 		// Setup the scheduler
 		BukkitRunner scheduler = new BukkitRunner(instance);
-		scheduler.runTaskTimerAsynchronously( instance, config.getInt( "update_interval" ) * 20, config.getInt( "update_interval" ) * 20 );
+		scheduler.runTaskTimerAsynchronously( instance, config.getInt( "update_interval" ) * 20L, config.getInt( "update_interval" ) * 20L);
 
 		// Log when plugin is fully enabled ( setup complete ).
 		getLogger().info( this.getLang( "log.enabled" ) );
@@ -92,7 +76,6 @@ public final class WooMinecraft extends JavaPlugin {
 
 	/**
 	 * Helper method to get localized strings
-	 *
 	 * Much better than typing this.l10n.getString...
 	 * @param path Path to the config var
 	 * @return String
@@ -117,11 +100,11 @@ public final class WooMinecraft extends JavaPlugin {
 	 */
 	private void validateConfig() throws Exception {
 
-		if ( 1 > this.getConfig().getString( "url" ).length() ) {
+		if ( 1 > this.getConfig().getString( "url", "").length() ) {
 			throw new Exception( "Server URL is empty, check config." );
-		} else if ( this.getConfig().getString( "url" ).equals( "http://playground.dev" ) ) {
+		} else if ( this.getConfig().getString( "url", "").equals( "http://playground.dev" ) ) {
 			throw new Exception( "URL is still the default URL, check config." );
-		} else if ( 1 > this.getConfig().getString( "key" ).length() ) {
+		} else if ( 1 > this.getConfig().getString( "key", "").length() ) {
 			throw new Exception( "Server Key is empty, this is insecure, check config." );
 		}
 	}
@@ -209,11 +192,6 @@ public final class WooMinecraft extends JavaPlugin {
 
 			// Walk over all commands and run them at the next available tick.
 			for ( String command : order.getCommands() ) {
-				//Auth player against Mojang api
-				if ( ! isPaidUser( player ) ) {
-					debug_log( "User is not a paid player " + player.getDisplayName() );
-					return false;
-				}
 
 				BukkitScheduler scheduler = Bukkit.getServer().getScheduler();
 				scheduler.scheduleSyncDelayedTask(instance, () -> Bukkit.getServer().dispatchCommand(Bukkit.getServer().getConsoleSender(), command), 20L);
@@ -368,82 +346,4 @@ public final class WooMinecraft extends JavaPlugin {
 		}
 	}
 
-	/**
-	 * Determines if the user is a paid user or not.
-	 *
-	 * @param player A player object
-	 * @return If the user is a paid player.
-	 */
-	private boolean isPaidUser(Player player) {
-		String playerName = player.getName();
-		String playerUUID = player.getUniqueId().toString().replace( "-", "" );
-		String playerKeyBase = playerName + ':' + playerUUID + ':';
-		String validPlayerKey = playerKeyBase + true;
-		String invalidPlayerKey = playerKeyBase + false;
-
-		// Check if server is in online mode.
-		if (Bukkit.getServer().getOnlineMode()) {
-			wmc_log( "Server is in online mode.", 3 );
-			return true;
-		}
-
-		if ( ! Bukkit.spigot().getConfig().getBoolean("settings.bungeecord") ) {
-			wmc_log( "Server in offline Mode", 3 );
-			return false;
-		}
-
-		// Check the base pattern, if it exists, return if the player is valid or not.
-		// Doing so should save on many if/else statements
-		if ( PlayersMap.toString().contains( playerKeyBase ) ) {
-			boolean valid = PlayersMap.contains( validPlayerKey );
-			if ( ! valid ) {
-				player.sendMessage( "Mojang Auth: Please Speak with a admin about your purchase" );
-				wmc_log("Offline mode not supported", 3);
-			}
-
-			return valid;
-		}
-
-		debug_log( "Player was not in the key set " + NL + PlayersMap.toString() );
-
-		try {
-			URL mojangUrl = new URL("https://api.mojang.com/users/profiles/minecraft/" +  playerName);
-			InputStream inputStream = mojangUrl.openStream();
-			Scanner scanner = new Scanner(inputStream);
-			String apiResponse = scanner.next();
-
-			debug_log(
-				"Logging stream data:" + NL +
-				inputStream.toString() + NL +
-				apiResponse + NL +
-				playerName + NL +
-				playerUUID
-			);
-
-			if ( ! apiResponse.contains( playerName ) ) {
-				PlayersMap.add( invalidPlayerKey );
-				throw new IOException("Mojang Auth: PlayerName doesn't exist");
-			}
-
-			if ( ! apiResponse.contains( playerUUID ) ) {
-				//if Username exists but is using the offline uuid(doesn't match mojang records) throw IOException and add player to the list as cracked
-				PlayersMap.add( invalidPlayerKey );
-				throw new IOException("Mojang Auth: PlayerName doesn't match uuid for account");
-			}
-
-			PlayersMap.add( validPlayerKey );
-			debug_log( PlayersMap.toString() );
-			return true;
-		} catch ( MalformedURLException urlException ) {
-			debug_log("Malformed URL: " + urlException.getMessage(), 3 );
-			player.sendMessage( "Mojang API Error: Please try again later or contact an admin about your purchase." );
-		} catch ( IOException e ) {
-			debug_log( "Map is " + PlayersMap.toString() );
-			debug_log( "Message when getting URL data " + e.getMessage(), 3 );
-			player.sendMessage("Mojang Auth: Please Speak with a admin about your purchase");
-		}
-
-		// Default to false, worst case they have to run this twice.
-		return false;
-	}
 }
